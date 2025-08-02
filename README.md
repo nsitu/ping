@@ -1,6 +1,6 @@
 # 🌊 SubmarinePing 🌊
 
-A browser-based "submarine ping" art app where users pick a hue (0–255) and one of four submarine types. Pressing "Ping" emits a short audio burst (440–1000 Hz mapped from hue, with a waveform encoding the sub type). Nearby peers running the same app detect each other via the mic, and display colored subs in a shared viewport for 1 sec before fade-out.
+A browser-based "submarine ping"  art app where users pick a hue (0–255) and one of four submarine types. Pressing "Ping" emits a short audio burst (440–1000 Hz mapped from hue, with a waveform encoding the sub type). Nearby peers running the same app detect each other via the mic, and display colored subs in a shared viewport for 1 sec before fade-out.
 
 ## Features
 
