@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" fill="white"/>
+  <!-- Hull -->
+  <path d="M90 260 
+           C90 220, 140 200, 190 200 
+           L322 200 
+           C372 200, 422 220, 422 260 
+           C422 300, 372 320, 322 320 
+           L190 320 
+           C140 320, 90 300, 90 260 Z" fill="black"/>
+  <!-- Conning tower -->
+  <rect x="230" y="170" width="60" height="90" rx="10" ry="10" fill="black"/>
+  <rect x="245" y="150" width="30" height="30" rx="5" ry="5" fill="black"/>
+  <!-- Torpedo tubes at front -->
+  <circle cx="120" cy="260" r="10" fill="white"/>
+  <circle cx="140" cy="260" r="10" fill="white"/>
+  <circle cx="160" cy="260" r="10" fill="white"/>
+  <!-- Fins -->
+  <polygon points="300,320 340,350 300,350" fill="black"/>
+  <polygon points="212,320 172,350 212,350" fill="black"/>
+  <!-- Rear propulsor -->
+  <rect x="420" y="255" width="20" height="10" fill="black"/>
+</svg>

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" fill="white"/>
+  <!-- Rounded body -->
+  <ellipse cx="256" cy="280" rx="180" ry="100" fill="black"/>
+  <!-- Top dome -->
+  <ellipse cx="256" cy="230" rx="120" ry="60" fill="black"/>
+  <!-- Windows -->
+  <circle cx="196" cy="280" r="30" fill="white"/>
+  <circle cx="256" cy="280" r="30" fill="white"/>
+  <circle cx="316" cy="280" r="30" fill="white"/>
+  <!-- Flag pole and small flag -->
+  <rect x="330" y="160" width="8" height="70" fill="black"/>
+  <path d="M338 160 L368 175 L338 190 Z" fill="black"/>
+  <!-- Propeller at back simple -->
+  <circle cx="445" cy="280" r="20" fill="black"/>
+  <circle cx="445" cy="280" r="10" fill="white"/>
+</svg>
