@@ -1,17 +1,17 @@
 // Setup screen for choosing hue and submarine model
 
 export function initSetupScreen(onSettingsChanged) {
-  const app = document.querySelector('#app');
-  
-  // Remove any existing setup screen
-  const existing = app.querySelector('.setup-screen');
-  if (existing) {
-    existing.remove();
-  }
-  
-  const setupScreen = document.createElement('div');
-  setupScreen.className = 'setup-screen';
-  setupScreen.innerHTML = `
+    const app = document.querySelector('#app');
+
+    // Remove any existing setup screen
+    const existing = app.querySelector('.setup-screen');
+    if (existing) {
+        existing.remove();
+    }
+
+    const setupScreen = document.createElement('div');
+    setupScreen.className = 'setup-screen';
+    setupScreen.innerHTML = `
     <h2>⚙️ Submarine Configuration</h2>
     
     <div class="color-picker">
@@ -26,87 +26,160 @@ export function initSetupScreen(onSettingsChanged) {
         <div class="model-option" data-model="research">
           <div class="model-icon">R</div>
           <div>Research</div>
-          <small>Sine Wave</small>
+          <small>Single Ping (200ms)</small>
         </div>
         <div class="model-option" data-model="military">
           <div class="model-icon">M</div>
           <div>Military</div>
-          <small>Square Wave</small>
+          <small>Triple Ping (100-50-100-50-100ms)</small>
         </div>
         <div class="model-option" data-model="tourist">
           <div class="model-icon">T</div>
           <div>Tourist</div>
-          <small>Sawtooth Wave</small>
+          <small>Double Ping (150-75-150ms)</small>
         </div>
         <div class="model-option" data-model="robotic">
           <div class="model-icon">★</div>
           <div>Robotic</div>
-          <small>Triangle Wave</small>
+          <small>Quad Ping (80-40-80-40-80-40-80ms)</small>
         </div>
       </div>
     </div>
+    
+    <details class="audio-debug">
+      <summary>🔧 Audio Debug Settings</summary>
+      <div class="debug-controls">
+        <div class="control-group">
+          <label for="volume-slider">Ping Volume: <span id="volume-display">50%</span></label>
+          <input type="range" id="volume-slider" min="10" max="100" value="50">
+        </div>
+        <div class="control-group">
+          <label for="threshold-slider">Detection Threshold: <span id="threshold-display">-45</span> dB</label>
+          <input type="range" id="threshold-slider" min="-60" max="-20" value="-45">
+        </div>
+        <button id="noise-test">Test Noise Level</button>
+        <div id="noise-result"></div>
+      </div>
+    </details>
   `;
-  
-  app.appendChild(setupScreen);
-  
-  // Get references to controls
-  const hueSlider = setupScreen.querySelector('#hue-slider');
-  const hueDisplay = setupScreen.querySelector('#hue-display');
-  const freqDisplay = setupScreen.querySelector('#freq-display');
-  const modelOptions = setupScreen.querySelectorAll('.model-option');
-  
-  // Import mapping functions
-  import('../core/mapping.js').then(({ hueToFrequency }) => {
-    // Update frequency display
-    function updateFrequencyDisplay() {
-      const hue = parseInt(hueSlider.value);
-      const frequency = Math.round(hueToFrequency(hue));
-      hueDisplay.textContent = hue;
-      freqDisplay.textContent = frequency;
+
+    app.appendChild(setupScreen);
+
+    // Get references to controls
+    const hueSlider = setupScreen.querySelector('#hue-slider');
+    const hueDisplay = setupScreen.querySelector('#hue-display');
+    const freqDisplay = setupScreen.querySelector('#freq-display');
+    const modelOptions = setupScreen.querySelectorAll('.model-option');
+
+    // Debug controls
+    const volumeSlider = setupScreen.querySelector('#volume-slider');
+    const volumeDisplay = setupScreen.querySelector('#volume-display');
+    const thresholdSlider = setupScreen.querySelector('#threshold-slider');
+    const thresholdDisplay = setupScreen.querySelector('#threshold-display');
+    const noiseTestBtn = setupScreen.querySelector('#noise-test');
+    const noiseResult = setupScreen.querySelector('#noise-result');    // Import mapping functions
+    import('../core/mapping.js').then(({ hueToFrequency }) => {
+        // Update frequency display
+        function updateFrequencyDisplay() {
+            const hue = parseInt(hueSlider.value);
+            const frequency = Math.round(hueToFrequency(hue));
+            hueDisplay.textContent = hue;
+            freqDisplay.textContent = frequency;
+        }
+
+        // Initialize display
+        updateFrequencyDisplay();
+
+        // Handle hue slider changes
+        hueSlider.addEventListener('input', () => {
+            updateFrequencyDisplay();
+            emitSettingsChange();
+        });
+    });
+
+    // Handle model selection
+    modelOptions.forEach(option => {
+        option.addEventListener('click', () => {
+            // Remove selected class from all options
+            modelOptions.forEach(opt => opt.classList.remove('selected'));
+            // Add selected class to clicked option
+            option.classList.add('selected');
+            emitSettingsChange();
+        });
+    });
+
+    // Set default selection (research submarine)
+    modelOptions[0].classList.add('selected');
+
+    // Setup debug controls
+    setupDebugControls();
+
+    function setupDebugControls() {
+        // Volume control
+        volumeSlider.addEventListener('input', () => {
+            const volume = parseInt(volumeSlider.value);
+            volumeDisplay.textContent = volume + '%';
+
+            // Update emitter settings
+            import('../audio/emitter.js').then(({ setAudioSettings }) => {
+                setAudioSettings({ PING_GAIN: volume / 100 });
+            });
+        });
+
+        // Threshold control
+        thresholdSlider.addEventListener('input', () => {
+            const threshold = parseInt(thresholdSlider.value);
+            thresholdDisplay.textContent = threshold;
+
+            // Update receiver settings
+            import('../audio/receiver.js').then(({ setDetectionThresholds }) => {
+                setDetectionThresholds({ SIGNAL_PROCESS: threshold });
+            });
+        });
+
+        // Noise test
+        noiseTestBtn.addEventListener('click', async () => {
+            noiseTestBtn.disabled = true;
+            noiseTestBtn.textContent = 'Testing...';
+            noiseResult.textContent = 'Measuring noise level...';
+
+            try {
+                const { getNoiseLevel } = await import('../audio/receiver.js');
+                const noiseLevel = await getNoiseLevel(2000); // 2 second test
+
+                if (noiseLevel !== null) {
+                    noiseResult.innerHTML = `
+            <div>Average Noise: ${noiseLevel.toFixed(1)} dB</div>
+            <div>Recommended threshold: ${Math.max(-60, noiseLevel + 10).toFixed(0)} dB</div>
+          `;
+                } else {
+                    noiseResult.textContent = 'Could not measure noise (microphone not active)';
+                }
+            } catch (error) {
+                noiseResult.textContent = 'Error measuring noise: ' + error.message;
+            }
+
+            noiseTestBtn.disabled = false;
+            noiseTestBtn.textContent = 'Test Noise Level';
+        });
+    } function emitSettingsChange() {
+        const hue = parseInt(hueSlider.value);
+        const selectedModel = setupScreen.querySelector('.model-option.selected');
+        const modelId = selectedModel ? selectedModel.dataset.model : 'research';
+
+        const settings = { hue, modelId };
+
+        // Fire custom event
+        window.dispatchEvent(new CustomEvent('settingsChanged', {
+            detail: settings
+        }));
+
+        // Also call the callback directly
+        onSettingsChanged(settings);
     }
-    
-    // Initialize display
-    updateFrequencyDisplay();
-    
-    // Handle hue slider changes
-    hueSlider.addEventListener('input', () => {
-      updateFrequencyDisplay();
-      emitSettingsChange();
-    });
-  });
-  
-  // Handle model selection
-  modelOptions.forEach(option => {
-    option.addEventListener('click', () => {
-      // Remove selected class from all options
-      modelOptions.forEach(opt => opt.classList.remove('selected'));
-      // Add selected class to clicked option
-      option.classList.add('selected');
-      emitSettingsChange();
-    });
-  });
-  
-  // Set default selection (research submarine)
-  modelOptions[0].classList.add('selected');
-  
-  function emitSettingsChange() {
-    const hue = parseInt(hueSlider.value);
-    const selectedModel = setupScreen.querySelector('.model-option.selected');
-    const modelId = selectedModel ? selectedModel.dataset.model : 'research';
-    
-    const settings = { hue, modelId };
-    
-    // Fire custom event
-    window.dispatchEvent(new CustomEvent('settingsChanged', { 
-      detail: settings 
-    }));
-    
-    // Also call the callback directly
-    onSettingsChanged(settings);
-  }
-  
-  // Initial settings emission
-  setTimeout(() => {
-    emitSettingsChange();
-  }, 100);
+
+    // Initial settings emission
+    setTimeout(() => {
+        emitSettingsChange();
+    }, 100);
 }

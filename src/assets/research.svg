@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-  <rect width="512" height="512" fill="white"/>
+<svg width="512" height="512" viewBox="0 0 512 512"
+  xmlns="http://www.w3.org/2000/svg">
+
   <!-- Hull -->
   <rect x="100" y="230" width="312" height="80" rx="40" ry="40" fill="black"/>
   <!-- Dome cockpit -->

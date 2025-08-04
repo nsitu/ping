@@ -12,11 +12,38 @@
     name="viewport"
     content="width=device-width, initial-scale=1.0"
   />
-  <title>SubmarinePing</title>
+  <title>RelationSHIP</title>
 </head>
 
 <body>
-  <div id="app"></div>
+  <div id="app">
+    <div id="welcome-overlay">
+      <div class="welcome-content">
+        <h1>🌊 RelationShip 🌊</h1>
+        <p>
+          Welcome to RelationShip! This app uses your device's microphone and speakers
+          to detect other submarines nearby through acoustic signals.
+        </p>
+        <p>
+          <strong>How it works:</strong><br>
+          • Choose your submarine color and type<br>
+          • Press "Ping" to emit a sonar signal<br>
+          • Detect other submarines in the area<br>
+          • Watch them appear in your sonar display
+        </p>
+        <p>
+          <em>We need access to your microphone to detect acoustic signals from other devices.</em>
+        </p>
+        <button
+          class="consent-button"
+          id="grant-permission"
+        >
+          Enable Sonar System
+        </button>
+      </div>
+
+    </div>
+  </div>
 
   <script
     type="module"
