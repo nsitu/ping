@@ -1,35 +1,37 @@
-// Audio emitter for generating submarine ping sounds
+// Audio emitter for generating dual-tone submarine pings
+// Uses two simultaneous frequencies: submarine type (500-600Hz) + hue (650-800Hz)
 
-import { hueToFrequency, getWaveform } from '../core/mapping.js';
+import { hueToFrequency, getSubmarineFrequency } from '../core/mapping.js';
 
 let audioContext = null;
 let lastEmitTime = 0;
 
-// Configurable audio settings
+// Configurable audio settings for dual-tone pings
 const AUDIO_SETTINGS = {
-    PING_GAIN: 0.5,        // 50% volume (0.0 - 1.0)
+    PING_GAIN: 0.3,        // 30% volume per tone (0.0 - 1.0)
+    PING_DURATION: 200,    // 200ms ping duration
     ATTACK_TIME: 0.01,     // 10ms attack
     RELEASE_TIME: 0.05     // 50ms release
 };
 
 // Enhanced pulse patterns with amplitude signatures for each submarine type
 const SUBMARINE_PATTERNS = {
-    research: { 
+    research: {
         timing: [200],
         amplitudePattern: 'constant',
         gains: [0.5] // Single constant gain
     },
-    military: { 
+    military: {
         timing: [100, 50, 100, 50, 100],
         amplitudePattern: 'ascending',
         gains: [0.3, 0.4, 0.5] // Ascending gains
     },
-    tourist: { 
+    tourist: {
         timing: [150, 75, 150],
-        amplitudePattern: 'descending', 
+        amplitudePattern: 'descending',
         gains: [0.5, 0.3] // Descending gains
     },
-    robotic: { 
+    robotic: {
         timing: [80, 40, 80, 40, 80, 40, 80],
         amplitudePattern: 'alternating',
         gains: [0.5, 0.3, 0.5, 0.3] // Alternating gains
@@ -56,64 +58,77 @@ export async function emitPing(hue, modelId) {
 
     // Prevent rapid-fire pings
     const now = Date.now();
-    if (now - lastEmitTime < 2000) { // Increased cooldown for pattern sequences
+    if (now - lastEmitTime < 1000) { // Reduced cooldown for simpler dual-tone
         return;
     }
     lastEmitTime = now;
 
-    const frequency = hueToFrequency(hue);
-    const patternData = SUBMARINE_PATTERNS[modelId] || SUBMARINE_PATTERNS.research;
-    const pattern = patternData.timing;
-    const gains = patternData.gains;
+    // Get the two frequencies for dual-tone encoding
+    const submarineFreq = getSubmarineFrequency(modelId);  // 500-600 Hz range
+    const hueFreq = hueToFrequency(hue);                   // 650-800 Hz range
+    const duration = AUDIO_SETTINGS.PING_DURATION / 1000; // Convert to seconds
 
-    console.log(`Emitting ${modelId} ping pattern:`, pattern, `at ${frequency} Hz with amplitude pattern: ${patternData.amplitudePattern}`);
+    console.log(`Emitting ${modelId} dual-tone ping: ${submarineFreq} Hz (type) + ${hueFreq.toFixed(1)} Hz (hue: ${hue})`);
 
-    let currentTime = audioContext.currentTime;
-    let pulseIndex = 0;
+    const currentTime = audioContext.currentTime;
 
-    // Emit each pulse in the pattern
-    for (let i = 0; i < pattern.length; i += 2) {
-        const pulseDuration = pattern[i] / 1000; // Convert ms to seconds
-        const pauseDuration = (pattern[i + 1] || 0) / 1000; // Pause after pulse
-        const pulseGain = gains[pulseIndex] || 0.5; // Use specific gain for this pulse
+    // Create first oscillator for submarine type (500-600 Hz)
+    const submarineOsc = audioContext.createOscillator();
+    const submarineGain = audioContext.createGain();
+    
+    submarineOsc.type = 'sine';
+    submarineOsc.frequency.setValueAtTime(submarineFreq, currentTime);
+    
+    submarineOsc.connect(submarineGain);
+    submarineGain.connect(audioContext.destination);
+    
+    // Create second oscillator for hue (650-800 Hz)
+    const hueOsc = audioContext.createOscillator();
+    const hueGainNode = audioContext.createGain();
+    
+    hueOsc.type = 'sine';
+    hueOsc.frequency.setValueAtTime(hueFreq, currentTime);
+    
+    hueOsc.connect(hueGainNode);
+    hueGainNode.connect(audioContext.destination);
 
-        // Create oscillator and gain for this pulse
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
+    // Configure gain envelopes for both tones (simultaneous)
+    const gain = AUDIO_SETTINGS.PING_GAIN;
+    const attackTime = AUDIO_SETTINGS.ATTACK_TIME;
+    const releaseTime = AUDIO_SETTINGS.RELEASE_TIME;
 
-        oscillator.type = 'sine'; // Use sine wave for reliability across all types
-        oscillator.frequency.setValueAtTime(frequency, currentTime);
+    // Submarine tone envelope
+    submarineGain.gain.setValueAtTime(0, currentTime);
+    submarineGain.gain.linearRampToValueAtTime(gain, currentTime + attackTime);
+    submarineGain.gain.setValueAtTime(gain, currentTime + duration - releaseTime);
+    submarineGain.gain.linearRampToValueAtTime(0, currentTime + duration);
 
-        // Connect audio nodes
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
+    // Hue tone envelope
+    hueGainNode.gain.setValueAtTime(0, currentTime);
+    hueGainNode.gain.linearRampToValueAtTime(gain, currentTime + attackTime);
+    hueGainNode.gain.setValueAtTime(gain, currentTime + duration - releaseTime);
+    hueGainNode.gain.linearRampToValueAtTime(0, currentTime + duration);
 
-        // Create clean pulse envelope with specific amplitude
-        gainNode.gain.setValueAtTime(0, currentTime);
-        gainNode.gain.linearRampToValueAtTime(pulseGain, currentTime + AUDIO_SETTINGS.ATTACK_TIME);
-        gainNode.gain.setValueAtTime(pulseGain, currentTime + pulseDuration - AUDIO_SETTINGS.RELEASE_TIME);
-        gainNode.gain.linearRampToValueAtTime(0, currentTime + pulseDuration);
-
-        // Schedule oscillator
-        oscillator.start(currentTime);
-        oscillator.stop(currentTime + pulseDuration);
-
-        // Move to next pulse time
-        currentTime += pulseDuration + pauseDuration;
-        pulseIndex++;
-    }
+    // Start and stop both oscillators simultaneously
+    submarineOsc.start(currentTime);
+    submarineOsc.stop(currentTime + duration);
+    
+    hueOsc.start(currentTime);
+    hueOsc.stop(currentTime + duration);
 
     // Fire ping emitted event
     window.dispatchEvent(new CustomEvent('pingEmitted', {
         detail: {
-            frequency: frequency,
+            submarineFreq: submarineFreq,
+            hueFreq: hueFreq,
+            hue: hue,
             modelId: modelId,
-            pattern: patternData,
-            timestamp: now
+            timestamp: now,
+            duration: AUDIO_SETTINGS.PING_DURATION
         }
     }));
 
-    console.log(`${modelId} ping pattern emitted: ${frequency} Hz, ${Math.ceil(pattern.length / 2)} pulses, amplitude: ${patternData.amplitudePattern}`);
+    console.log(`${modelId} dual-tone ping emitted successfully`);
 }
 
 // Utility functions for audio configuration
@@ -124,8 +139,4 @@ export function setAudioSettings(newSettings) {
 
 export function getAudioSettings() {
     return { ...AUDIO_SETTINGS };
-}
-
-export function getSubmarinePatterns() {
-    return { ...SUBMARINE_PATTERNS };
 }
