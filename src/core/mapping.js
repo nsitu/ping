@@ -1,5 +1,6 @@
 // Mapping functions for single-frequency submarine ping encoding
 // Each submarine type gets a 75Hz frequency range with hue encoded within that range
+// All submarines use sine waves for optimal detection reliability
 
 // Frequency ranges for each submarine type (75Hz each)
 const SUBMARINE_FREQUENCY_RANGES = {
@@ -65,34 +66,23 @@ export function getFrequencyRanges() {
 }
 
 export function getWaveform(modelId) {
-    const waveformMap = {
-        research: 'sine',
-        military: 'square',
-        tourist: 'sawtooth',
-        robotic: 'triangle'
-    };
-
-    return waveformMap[modelId] || 'sine';
+    // All submarine types now use sine waves for optimal detection reliability
+    return 'sine';
 }
 
 export function getModelFromWaveform(waveform) {
-    const modelMap = {
-        sine: 'research',
-        square: 'military',
-        sawtooth: 'tourist',
-        triangle: 'robotic'
-    };
-
-    return modelMap[waveform] || 'research';
+    // Since all models now use sine waves, we can't determine model from waveform
+    // This function is kept for backward compatibility but will always return null
+    return null;
 }
 
 // Utility function to get model display info
 export function getModelInfo(modelId) {
     const modelInfo = {
         research: { name: 'Research', icon: 'R', waveform: 'sine' },
-        military: { name: 'Military', icon: 'M', waveform: 'square' },
-        tourist: { name: 'Tourist', icon: 'T', waveform: 'sawtooth' },
-        robotic: { name: 'Robotic', icon: '★', waveform: 'triangle' }
+        military: { name: 'Military', icon: 'M', waveform: 'sine' },
+        tourist: { name: 'Tourist', icon: 'T', waveform: 'sine' },
+        robotic: { name: 'Robotic', icon: '★', waveform: 'sine' }
     };
 
     return modelInfo[modelId] || modelInfo.research;

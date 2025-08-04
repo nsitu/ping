@@ -17,6 +17,89 @@
 
 <body>
   <div id="app">
+    <div id="setup-screen">
+      <h2>⚙️ Submarine Configuration</h2>
+
+      <div class="color-picker">
+        <label for="hue-slider">Sonar Frequency (Hue):</label>
+        <input
+          type="range"
+          id="hue-slider"
+          class="hue-slider"
+          min="0"
+          max="255"
+          value="128"
+        >
+        <div class="hue-value">Hue: <span id="hue-display">128</span> | Frequency: <span id="freq-display">720</span> Hz
+        </div>
+      </div>
+
+      <div class="submarine-models">
+        <label>Submarine Type:</label>
+        <div class="model-grid">
+          <div
+            class="model-option"
+            data-model="research"
+          >
+            <div class="model-icon">R</div>
+            <div>Research</div>
+            <small>500-575 Hz</small>
+          </div>
+          <div
+            class="model-option"
+            data-model="military"
+          >
+            <div class="model-icon">M</div>
+            <div>Military</div>
+            <small>400-475 Hz</small>
+          </div>
+          <div
+            class="model-option"
+            data-model="tourist"
+          >
+            <div class="model-icon">T</div>
+            <div>Tourist</div>
+            <small>700-775 Hz</small>
+          </div>
+          <div
+            class="model-option"
+            data-model="robotic"
+          >
+            <div class="model-icon">★</div>
+            <div>Robotic</div>
+            <small>600-675 Hz</small>
+          </div>
+        </div>
+      </div>
+
+      <details class="audio-debug">
+        <summary>🔧 Audio Debug Settings</summary>
+        <div class="debug-controls">
+          <div class="control-group">
+            <label for="volume-slider">Ping Volume: <span id="volume-display">50%</span></label>
+            <input
+              type="range"
+              id="volume-slider"
+              min="10"
+              max="100"
+              value="50"
+            >
+          </div>
+          <div class="control-group">
+            <label for="threshold-slider">Detection Threshold: <span id="threshold-display">-45</span> dB</label>
+            <input
+              type="range"
+              id="threshold-slider"
+              min="-60"
+              max="-20"
+              value="-45"
+            >
+          </div>
+          <button id="noise-test">Test Noise Level</button>
+          <div id="noise-result"></div>
+        </div>
+      </details>
+    </div>
     <div id="welcome-overlay">
       <div class="welcome-content">
         <h1>🌊 RelationShip 🌊</h1>

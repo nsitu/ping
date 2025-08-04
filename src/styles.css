@@ -80,7 +80,7 @@ body {
 }
 
 /* Setup Screen */
-.setup-screen {
+#setup-screen {
     position: absolute;
     top: 20px;
     left: 20px;
@@ -92,7 +92,7 @@ body {
     min-width: 300px;
 }
 
-.setup-screen h2 {
+#setup-screen h2 {
     color: #00ffff;
     margin-bottom: 20px;
     font-size: 1.3rem;

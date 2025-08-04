@@ -1,13 +1,13 @@
 # 🌊 RelationShip 🌊
 
-A browser-based "submarine ping"  art app where users pick a hue (0–255) and one of four submarine types. Pressing "Ping" emits a short audio burst (440–1000 Hz mapped from hue, with a waveform encoding the sub type). Nearby peers running the same app detect each other via the mic, and display colored subs in a shared viewport for 1 sec before fade-out.
+A browser-based "submarine ping" art app where users pick a hue (0–255) and one of four submarine types. Pressing "Ping" emits a short sine wave audio burst (400–775 Hz mapped from hue and submarine type). Nearby peers running the same app detect each other via the mic, and display colored subs in a shared viewport for 1 sec before fade-out.
 
 ## Features
 
 - **Audio-based Peer Detection**: Uses microphone and speakers for device-to-device communication
 - **Submarine Customization**: Choose from 4 submarine types (Research, Military, Tourist, Robotic)
-- **Color Mapping**: Hue (0-255) maps to audio frequency (440-1000 Hz)
-- **Waveform Encoding**: Each submarine type uses a different waveform (sine, square, sawtooth, triangle)
+- **Color Mapping**: Hue (0-255) maps to audio frequency within submarine-specific ranges
+- **Frequency-based Detection**: Each submarine type uses a distinct frequency range for reliable detection
 - **Real-time Visualization**: See detected submarines appear in your sonar display
 - **No Network Required**: Pure local audio signaling between devices
 
@@ -22,13 +22,13 @@ A browser-based "submarine ping"  art app where users pick a hue (0–255) and o
 ## Technical Details
 
 ### Audio Mapping
-- **Frequency Range**: 440 Hz - 1000 Hz
-- **Hue Mapping**: 0 (red) = 440 Hz, 255 (red again) = 1000 Hz
-- **Waveforms**: 
-  - Research: Sine wave
-  - Military: Square wave  
-  - Tourist: Sawtooth wave
-  - Robotic: Triangle wave
+- **Frequency Ranges**: 
+  - Military: 400-475 Hz
+  - Research: 500-575 Hz  
+  - Robotic: 600-675 Hz
+  - Tourist: 700-775 Hz
+- **Hue Mapping**: Within each 75Hz range, hue 0-255 maps linearly from min to max frequency
+- **Waveform**: All submarines use sine waves for optimal detection reliability
 
 ### File Structure
 ```
