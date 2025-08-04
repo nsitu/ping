@@ -2,7 +2,7 @@
 
 // Configuration constants
 const HUE_RANGE = [0, 255];
-const FREQ_RANGE_HZ = [440, 1000];
+const FREQ_RANGE_HZ = [600, 800]; // Optimized range for better detection reliability
 
 export function hueToFrequency(hue) {
     // Map hue (0-255) to frequency (440-1000 Hz)

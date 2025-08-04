@@ -14,7 +14,7 @@ let signalHistory = []; // Store signal strength history for pattern analysis
 let lastDetectionTime = 0; // Track last successful detection to prevent duplicates
 const PATTERN_TIMEOUT = 1500; // How long to wait for complete pattern (ms)
 const PATTERN_WAIT_TIME = 500; // Wait time after first pulse before pattern matching (ms)
-const HISTORY_DURATION = 500; // Keep 500ms of signal history
+const HISTORY_DURATION = 700; // Keep 700ms of signal history to ensure full robotic pattern capture
 
 const SAMPLE_RATE = 44100;
 const FFT_SIZE = 2048;
@@ -28,12 +28,28 @@ const DETECTION_THRESHOLDS = {
     NOISE_FLOOR: -65       // dB - estimated noise floor
 };
 
-// Expected pulse patterns for each submarine type (pulse_duration_ms, pause_duration_ms, ...)
+// Enhanced pulse patterns with amplitude signatures for each submarine type
 const SUBMARINE_PATTERNS = {
-    research: [200],                    // Single long ping
-    military: [100, 50, 100, 50, 100], // Triple rapid ping
-    tourist: [150, 75, 150],           // Double ping  
-    robotic: [80, 40, 80, 40, 80, 40, 80] // Quadruple quick ping
+    research: { 
+        timing: [200],
+        amplitudePattern: 'constant', // Steady amplitude
+        description: 'Single long pulse with constant amplitude'
+    },
+    military: { 
+        timing: [100, 50, 100, 50, 100],
+        amplitudePattern: 'ascending', // Each pulse gets stronger
+        description: 'Triple pulse with ascending amplitude' 
+    },
+    tourist: { 
+        timing: [150, 75, 150],
+        amplitudePattern: 'descending', // Each pulse gets weaker
+        description: 'Double pulse with descending amplitude'
+    },
+    robotic: { 
+        timing: [80, 40, 80, 40, 80, 40, 80],
+        amplitudePattern: 'alternating', // Alternating strong/weak pattern
+        description: 'Quadruple pulse with alternating amplitude'
+    }
 };
 
 export async function startListening() {
@@ -141,8 +157,8 @@ function onAudioFrame(frequencyData) {
     for (const peak of peaks) {
         const frequency = peak.frequency;
 
-        // Check if frequency is in our range (440-1000 Hz)
-        if (frequency >= 440 && frequency <= 1000) {
+        // Check if frequency is in our optimal range (600-800 Hz for best reliability)
+        if (frequency >= 600 && frequency <= 800) {
             const strength = peak.magnitude;
 
             if (strength > maxSignalInRange) {
@@ -161,36 +177,52 @@ function onAudioFrame(frequencyData) {
     });
 
     // Check if we have enough history and if signal pattern just ended
-    if (signalHistory.length > 15) { // Need more samples for multi-pulse patterns
-        const recentSamples = signalHistory.slice(-8); // Last 8 samples (~128ms)
-        const olderSamples = signalHistory.slice(-25, -8); // Previous samples (~272ms)
+    if (signalHistory.length > 25) { // Need more samples for complex patterns
+        const recentSamples = signalHistory.slice(-6); // Last 6 samples (~96ms) - more responsive
+        const olderSamples = signalHistory.slice(-50, -6); // Previous samples (~700ms) - longer window for complex patterns
 
         const recentHasSignal = recentSamples.some(s => s.isSignal);
         const olderHasSignal = olderSamples.some(s => s.isSignal);
 
         // If we had signal before but not recently, analyze the pattern
-        // Wait longer for complex patterns to complete
+        // Wait longer for complex patterns to complete, especially robotic (4 pulses)
         if (olderHasSignal && !recentHasSignal) {
-            // Wait a bit longer to ensure we captured the complete pattern
+            // Check if this might be a robotic pattern (4 pulses) - give it extra time
+            const signalSamples = signalHistory.filter(s => s.isSignal);
+
+            // More sophisticated robotic pattern detection
+            // Robotic has ~27 signal samples over 440ms (4 * 80ms pulses + gaps)
+            const isLikelyRobotic = signalSamples.length >= 20 && signalSamples.length <= 35;
+
+            let analysisDelay;
+            if (isLikelyRobotic) {
+                // Likely robotic pattern - wait much longer (robotic pattern is ~440ms total)
+                analysisDelay = 250; // Even longer delay
+                console.log(`Potential robotic pattern detected (${signalSamples.length} signal samples), using extended delay`);
+            } else {
+                // Standard delay for other patterns
+                analysisDelay = 100; // Shorter for non-robotic
+            }
+
             setTimeout(() => {
                 analyzeSignalPattern(bestFrequency || getAverageFrequency(signalHistory));
-            }, 50); // 50ms delay to ensure pattern completion
+            }, analysisDelay);
         }
     }
 }
 
 function analyzeSignalPattern(frequency) {
-    if (signalHistory.length < 20) return; // Need enough samples
+    if (signalHistory.length < 25) return; // Need enough samples
 
     const now = Date.now();
 
-    // Prevent duplicate detections within 1 second
-    if (now - lastDetectionTime < 1000) {
+    // Prevent duplicate detections within 800ms
+    if (now - lastDetectionTime < 800) {
         console.log('Skipping analysis - too soon after last detection');
         return;
     }
 
-    console.log(`Analyzing signal pattern for ${frequency?.toFixed(1) || 'unknown'} Hz with ${signalHistory.length} samples`);
+    console.log(`Analyzing signal pattern for ${frequency?.toFixed(1) || 'unknown'} Hz with ${signalHistory.length} samples over ${signalHistory.length > 0 ? (signalHistory[signalHistory.length - 1].timestamp - signalHistory[0].timestamp) : 0}ms`);
 
     // Convert signal history to binary pattern (signal/no-signal)
     const threshold = DETECTION_THRESHOLDS.SIGNAL_PROCESS;
@@ -240,12 +272,16 @@ function analyzeSignalPattern(frequency) {
     }
 
     console.log(`Found ${pulseSequences.length} pulse sequences:`,
-        pulseSequences.map(p => `${p.duration}ms`).join(', '));
+        pulseSequences.map((p, i) => `[${i}] ${p.duration}ms (${p.startTime}-${p.endTime}) @ ${p.maxMagnitude.toFixed(1)}dB`).join(', '));
 
     if (pulseSequences.length === 0) return;
 
-    // Try to match pattern
-    const detectedPattern = matchSignalPattern(pulseSequences);
+    // Analyze amplitude pattern
+    const amplitudePattern = analyzeAmplitudePattern(pulseSequences);
+    console.log(`Amplitude pattern detected: ${amplitudePattern}`);
+
+    // Try to match pattern with both timing and amplitude
+    const detectedPattern = matchSignalPattern(pulseSequences, amplitudePattern);
     if (detectedPattern) {
         const strongestPulse = pulseSequences.reduce((prev, current) =>
             (prev.maxMagnitude > current.maxMagnitude) ? prev : current
@@ -265,22 +301,74 @@ function analyzeSignalPattern(frequency) {
             detail: pingEvent
         }));
 
-        console.log(`${detectedPattern.modelId} submarine detected: ${frequency?.toFixed(1) || 'unknown'} Hz, pattern: [${detectedPattern.pattern.join(', ')}]ms, strength: ${strongestPulse.maxMagnitude.toFixed(1)} dB`);
+        console.log(`${detectedPattern.modelId} submarine detected: ${frequency?.toFixed(1) || 'unknown'} Hz, pattern: [${detectedPattern.pattern.timing.join(', ')}]ms, amplitude: ${amplitudePattern}, strength: ${strongestPulse.maxMagnitude.toFixed(1)} dB`);
 
         // Clear history after successful detection and set cooldown
         signalHistory = [];
         lastDetectionTime = Date.now();
+    } else {
+        // No pattern matched - set cooldown to prevent endless re-analysis
+        console.log('No pattern matched, setting analysis cooldown');
+        lastDetectionTime = Date.now();
+        signalHistory = []; // Clear history to prevent re-analysis of same data
     }
 }
 
-function matchSignalPattern(pulseSequences) {
+function analyzeAmplitudePattern(pulseSequences) {
+    if (pulseSequences.length < 2) return 'constant';
+    
+    const amplitudes = pulseSequences.map(p => p.maxMagnitude);
+    const amplitudeTrend = [];
+    
+    // Calculate amplitude differences between consecutive pulses
+    for (let i = 1; i < amplitudes.length; i++) {
+        const diff = amplitudes[i] - amplitudes[i - 1];
+        if (Math.abs(diff) < 3) { // Less than 3dB difference = constant
+            amplitudeTrend.push('same');
+        } else if (diff > 0) {
+            amplitudeTrend.push('up');
+        } else {
+            amplitudeTrend.push('down');
+        }
+    }
+    
+    // Determine overall pattern
+    const upCount = amplitudeTrend.filter(t => t === 'up').length;
+    const downCount = amplitudeTrend.filter(t => t === 'down').length;
+    const sameCount = amplitudeTrend.filter(t => t === 'same').length;
+    
+    if (sameCount >= amplitudeTrend.length * 0.7) return 'constant';
+    if (upCount > downCount * 1.5) return 'ascending';
+    if (downCount > upCount * 1.5) return 'descending';
+    
+    // Check for alternating pattern (for robotic)
+    if (amplitudeTrend.length >= 2) {
+        const alternating = amplitudeTrend.every((trend, i) => {
+            if (i === 0) return true;
+            return trend !== amplitudeTrend[i - 1] || trend === 'same';
+        });
+        if (alternating && sameCount < amplitudeTrend.length * 0.5) {
+            return 'alternating';
+        }
+    }
+    
+    return 'mixed';
+}
+
+function matchSignalPattern(pulseSequences, amplitudePattern) {
     if (pulseSequences.length === 1) {
         // Single pulse - check if it matches research pattern
         const duration = pulseSequences[0].duration;
-        console.log(`Single pulse: ${duration}ms duration`);
+        console.log(`Single pulse: ${duration}ms duration, amplitude: ${amplitudePattern}`);
 
         if (duration >= 150 && duration <= 300) {
-            return { modelId: 'research', pattern: [200] };
+            // Research should have constant amplitude
+            const amplitudeMatch = amplitudePattern === 'constant';
+            console.log(`Research amplitude match: ${amplitudeMatch} (expected: constant, got: ${amplitudePattern})`);
+            
+            if (amplitudeMatch) {
+                return { modelId: 'research', pattern: SUBMARINE_PATTERNS.research };
+            }
         }
     } else if (pulseSequences.length > 1) {
         // Multi-pulse pattern - calculate intervals
@@ -290,26 +378,37 @@ function matchSignalPattern(pulseSequences) {
             intervals.push(interval);
         }
 
-        console.log(`Multi-pulse pattern: ${pulseSequences.length} pulses, intervals: [${intervals.join(', ')}]ms`);
+        console.log(`Multi-pulse pattern: ${pulseSequences.length} pulses, intervals: [${intervals.join(', ')}]ms, amplitude: ${amplitudePattern}`);
+        console.log(`Pulse timings: ${pulseSequences.map((p, i) => `P${i + 1}: ${p.startTime}-${p.endTime} (${p.duration}ms) @ ${p.maxMagnitude.toFixed(1)}dB`).join(', ')}`);
 
         // Try to match against known patterns - check most specific patterns first
         const patternEntries = Object.entries(SUBMARINE_PATTERNS)
             .filter(([modelId]) => modelId !== 'research')
             .sort((a, b) => {
                 // Sort by specificity: more pulses first, then by smaller intervals
-                const aPulses = Math.ceil(a[1].length / 2);
-                const bPulses = Math.ceil(b[1].length / 2);
+                const aPulses = Math.ceil(a[1].timing.length / 2);
+                const bPulses = Math.ceil(b[1].timing.length / 2);
                 if (aPulses !== bPulses) {
                     return bPulses - aPulses; // More pulses first
                 }
                 // If same pulse count, prioritize smaller intervals (more specific timing)
-                const aInterval = a[1][1] || 0;
-                const bInterval = b[1][1] || 0;
+                const aInterval = a[1].timing[1] || 0;
+                const bInterval = b[1].timing[1] || 0;
                 return aInterval - bInterval; // Smaller intervals first
             });
 
         for (const [modelId, pattern] of patternEntries) {
-            if (matchesTimingPattern(intervals, pattern, modelId, pulseSequences.length)) {
+            const timingMatch = matchesTimingPattern(intervals, pattern.timing, modelId, pulseSequences.length);
+            const amplitudeMatch = pattern.amplitudePattern === amplitudePattern;
+            
+            console.log(`${modelId} - Timing: ${timingMatch ? '✓' : '✗'}, Amplitude: ${amplitudeMatch ? '✓' : '✗'} (expected: ${pattern.amplitudePattern}, got: ${amplitudePattern})`);
+            
+            // Require both timing and amplitude to match, OR very strong timing match with loose amplitude
+            if (timingMatch && amplitudeMatch) {
+                return { modelId, pattern };
+            } else if (timingMatch && amplitudePattern !== 'mixed') {
+                // Allow timing-only match if amplitude pattern is clear (not mixed)
+                console.log(`${modelId} matched on timing only (strong signal)`);
                 return { modelId, pattern };
             }
         }
@@ -319,7 +418,7 @@ function matchSignalPattern(pulseSequences) {
 }
 
 function matchesTimingPattern(detectedIntervals, expectedPattern, modelId, pulseCount) {
-    // Extract expected intervals from pattern
+    // Extract expected intervals from pattern timing
     const expectedIntervals = [];
     for (let i = 1; i < expectedPattern.length; i += 2) {
         expectedIntervals.push(expectedPattern[i]);
@@ -344,10 +443,10 @@ function matchesTimingPattern(detectedIntervals, expectedPattern, modelId, pulse
     // Check if intervals match within tolerance - use different tolerances for different patterns
     let tolerance;
     switch (modelId) {
-        case 'robotic': tolerance = 25; break;  // 40ms intervals, tight tolerance
-        case 'military': tolerance = 35; break; // 50ms intervals, moderate tolerance  
-        case 'tourist': tolerance = 45; break;  // 75ms intervals, looser tolerance
-        default: tolerance = 50; break;
+        case 'robotic': tolerance = 15; break;  // 40ms intervals, very tight tolerance
+        case 'military': tolerance = 15; break; // 50ms intervals, tighter tolerance to prevent 67ms matches
+        case 'tourist': tolerance = 20; break;  // 75ms intervals, tighter to prevent 50ms false matches
+        default: tolerance = 25; break;
     }
 
     for (let i = 0; i < expectedIntervals.length; i++) {
@@ -458,9 +557,9 @@ export function getNoiseLevel(duration = 1000) {
 
             analyser.getFloatFrequencyData(frequencyData);
 
-            // Sample noise from our frequency range (440-1000 Hz)
-            const startBin = Math.floor(440 / FREQ_BIN_SIZE);
-            const endBin = Math.floor(1000 / FREQ_BIN_SIZE);
+            // Sample noise from our optimal frequency range (600-800 Hz)
+            const startBin = Math.floor(600 / FREQ_BIN_SIZE);
+            const endBin = Math.floor(800 / FREQ_BIN_SIZE);
 
             let sum = 0;
             let count = 0;
