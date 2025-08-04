@@ -44,47 +44,42 @@ export function getCurrentSettings() {
 }
 
 export function addPeer(pingEvent) {
-    const { frequency, modelId, strength, magnitude, timestamp } = pingEvent;
+    const { frequency, modelId, hue, strength, magnitude, timestamp } = pingEvent;
 
     // Create unique peer ID based on frequency and model
     const peerId = `${Math.round(frequency)}_${modelId}`;
 
-    // Convert frequency back to hue for display
-    import('./mapping.js').then(({ frequencyToHue }) => {
-        const hue = frequencyToHue(frequency);
+    const peer = {
+        id: peerId,
+        lastSeen: timestamp,
+        strength: strength,
+        magnitude: magnitude, // Store raw dB value
+        hue: hue, // Now directly provided from the ping event
+        modelId: modelId,
+        frequency: frequency
+    };
 
-        const peer = {
-            id: peerId,
-            lastSeen: timestamp,
-            strength: strength,
-            magnitude: magnitude, // Store raw dB value
-            hue: hue,
-            modelId: modelId,
-            frequency: frequency
-        };
+    peers.set(peerId, peer);
 
-        peers.set(peerId, peer);
+    // Enforce max peers limit
+    if (peers.size > MAX_PEERS) {
+        // Remove oldest peer
+        let oldestId = null;
+        let oldestTime = Infinity;
 
-        // Enforce max peers limit
-        if (peers.size > MAX_PEERS) {
-            // Remove oldest peer
-            let oldestId = null;
-            let oldestTime = Infinity;
-
-            for (const [id, p] of peers.entries()) {
-                if (p.lastSeen < oldestTime) {
-                    oldestTime = p.lastSeen;
-                    oldestId = id;
-                }
-            }
-
-            if (oldestId) {
-                peers.delete(oldestId);
+        for (const [id, p] of peers.entries()) {
+            if (p.lastSeen < oldestTime) {
+                oldestTime = p.lastSeen;
+                oldestId = id;
             }
         }
 
-        console.log(`Peer added/updated: ${peerId}, total peers: ${peers.size}`);
-    });
+        if (oldestId) {
+            peers.delete(oldestId);
+        }
+    }
+
+    console.log(`Peer added/updated: ${peerId}, total peers: ${peers.size}`);
 
     return peers.get(peerId);
 }

@@ -1,37 +1,61 @@
 // Tests for mapping functions
 
-import { hueToFrequency, frequencyToHue, getWaveform, getModelFromWaveform } from '../src/core/mapping.js';
+import { getSubmarineFrequency, decodeFrequency, getWaveform, getModelFromWaveform, getFrequencyRanges } from '../src/core/mapping.js';
 
-// Test hue to frequency mapping
-function testHueToFrequency() {
-    console.log('Testing hue to frequency mapping...');
+// Test submarine frequency mapping
+function testSubmarineFrequencyMapping() {
+    console.log('Testing submarine frequency mapping...');
 
-    // Test boundaries
-    const freq0 = hueToFrequency(0);
-    const freq255 = hueToFrequency(255);
-    const freqMid = hueToFrequency(127.5);
+    const submarineTypes = ['military', 'research', 'robotic', 'tourist'];
+    const ranges = getFrequencyRanges();
 
-    console.assert(Math.abs(freq0 - 440) < 0.1, `Expected ~440Hz for hue 0, got ${freq0}`);
-    console.assert(Math.abs(freq255 - 1000) < 0.1, `Expected ~1000Hz for hue 255, got ${freq255}`);
-    console.assert(Math.abs(freqMid - 720) < 1, `Expected ~720Hz for hue 127.5, got ${freqMid}`);
+    for (const submarineType of submarineTypes) {
+        // Test boundaries
+        const freq0 = getSubmarineFrequency(submarineType, 0);
+        const freq255 = getSubmarineFrequency(submarineType, 255);
+        const freqMid = getSubmarineFrequency(submarineType, 128);
 
-    console.log('✓ Hue to frequency mapping tests passed');
+        const range = ranges[submarineType];
+
+        console.assert(Math.abs(freq0 - range.min) < 0.1,
+            `Expected ~${range.min}Hz for ${submarineType} hue 0, got ${freq0}`);
+        console.assert(Math.abs(freq255 - range.max) < 0.1,
+            `Expected ~${range.max}Hz for ${submarineType} hue 255, got ${freq255}`);
+
+        const expectedMid = range.min + (range.max - range.min) * 128 / 255;
+        console.assert(Math.abs(freqMid - expectedMid) < 1,
+            `Expected ~${expectedMid}Hz for ${submarineType} hue 128, got ${freqMid}`);
+    }
+
+    console.log('✓ Submarine frequency mapping tests passed');
 }
 
-// Test frequency to hue mapping
-function testFrequencyToHue() {
-    console.log('Testing frequency to hue mapping...');
+// Test frequency decoding
+function testFrequencyDecoding() {
+    console.log('Testing frequency decoding...');
 
-    // Test boundaries
-    const hue440 = frequencyToHue(440);
-    const hue1000 = frequencyToHue(1000);
-    const hue720 = frequencyToHue(720);
+    const testCases = [
+        { freq: 400, expectedType: 'military', expectedHue: 0 },
+        { freq: 475, expectedType: 'military', expectedHue: 255 },
+        { freq: 500, expectedType: 'research', expectedHue: 0 },
+        { freq: 575, expectedType: 'research', expectedHue: 255 },
+        { freq: 600, expectedType: 'robotic', expectedHue: 0 },
+        { freq: 675, expectedType: 'robotic', expectedHue: 255 },
+        { freq: 700, expectedType: 'tourist', expectedHue: 0 },
+        { freq: 775, expectedType: 'tourist', expectedHue: 255 }
+    ];
 
-    console.assert(Math.abs(hue440 - 0) < 1, `Expected ~0 for 440Hz, got ${hue440}`);
-    console.assert(Math.abs(hue1000 - 255) < 1, `Expected ~255 for 1000Hz, got ${hue1000}`);
-    console.assert(Math.abs(hue720 - 127.5) < 2, `Expected ~127.5 for 720Hz, got ${hue720}`);
+    for (const testCase of testCases) {
+        const decoded = decodeFrequency(testCase.freq);
 
-    console.log('✓ Frequency to hue mapping tests passed');
+        console.assert(decoded !== null, `Failed to decode frequency ${testCase.freq}`);
+        console.assert(decoded.submarineType === testCase.expectedType,
+            `Expected type ${testCase.expectedType} for ${testCase.freq}Hz, got ${decoded.submarineType}`);
+        console.assert(Math.abs(decoded.hue - testCase.expectedHue) < 2,
+            `Expected hue ~${testCase.expectedHue} for ${testCase.freq}Hz, got ${decoded.hue}`);
+    }
+
+    console.log('✓ Frequency decoding tests passed');
 }
 
 // Test round-trip conversion
@@ -39,13 +63,21 @@ function testRoundTripConversion() {
     console.log('Testing round-trip conversion...');
 
     const testHues = [0, 64, 128, 192, 255];
+    const submarineTypes = ['military', 'research', 'robotic', 'tourist'];
 
-    for (const originalHue of testHues) {
-        const freq = hueToFrequency(originalHue);
-        const convertedHue = frequencyToHue(freq);
-        const difference = Math.abs(originalHue - convertedHue);
+    for (const submarineType of submarineTypes) {
+        for (const originalHue of testHues) {
+            const freq = getSubmarineFrequency(submarineType, originalHue);
+            const decoded = decodeFrequency(freq);
 
-        console.assert(difference < 1, `Round-trip failed for hue ${originalHue}: ${originalHue} -> ${freq}Hz -> ${convertedHue}`);
+            console.assert(decoded !== null, `Failed to decode frequency ${freq} for ${submarineType}`);
+            console.assert(decoded.submarineType === submarineType,
+                `Wrong submarine type: expected ${submarineType}, got ${decoded.submarineType}`);
+
+            const difference = Math.abs(originalHue - decoded.hue);
+            console.assert(difference < 2,
+                `Round-trip failed for ${submarineType} hue ${originalHue}: ${originalHue} -> ${freq}Hz -> ${decoded.hue}`);
+        }
     }
 
     console.log('✓ Round-trip conversion tests passed');
@@ -82,8 +114,8 @@ export function runMappingTests() {
     console.log('=== Running Mapping Tests ===');
 
     try {
-        testHueToFrequency();
-        testFrequencyToHue();
+        testSubmarineFrequencyMapping();
+        testFrequencyDecoding();
         testRoundTripConversion();
         testWaveformMapping();
 
