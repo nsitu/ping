@@ -47,37 +47,37 @@ export async function emitPing(hue, modelId) {
 
     const frequency = hueToFrequency(hue);
     const pattern = SUBMARINE_PATTERNS[modelId] || SUBMARINE_PATTERNS.research;
-    
+
     console.log(`Emitting ${modelId} ping pattern:`, pattern, `at ${frequency} Hz`);
-    
+
     let currentTime = audioContext.currentTime;
-    
+
     // Emit each pulse in the pattern
     for (let i = 0; i < pattern.length; i += 2) {
         const pulseDuration = pattern[i] / 1000; // Convert ms to seconds
         const pauseDuration = (pattern[i + 1] || 0) / 1000; // Pause after pulse
-        
+
         // Create oscillator and gain for this pulse
         const oscillator = audioContext.createOscillator();
         const gainNode = audioContext.createGain();
-        
+
         oscillator.type = 'sine'; // Use sine wave for reliability across all types
         oscillator.frequency.setValueAtTime(frequency, currentTime);
-        
+
         // Connect audio nodes
         oscillator.connect(gainNode);
         gainNode.connect(audioContext.destination);
-        
+
         // Create clean pulse envelope
         gainNode.gain.setValueAtTime(0, currentTime);
         gainNode.gain.linearRampToValueAtTime(AUDIO_SETTINGS.PING_GAIN, currentTime + AUDIO_SETTINGS.ATTACK_TIME);
         gainNode.gain.setValueAtTime(AUDIO_SETTINGS.PING_GAIN, currentTime + pulseDuration - AUDIO_SETTINGS.RELEASE_TIME);
         gainNode.gain.linearRampToValueAtTime(0, currentTime + pulseDuration);
-        
+
         // Schedule oscillator
         oscillator.start(currentTime);
         oscillator.stop(currentTime + pulseDuration);
-        
+
         // Move to next pulse time
         currentTime += pulseDuration + pauseDuration;
     }
