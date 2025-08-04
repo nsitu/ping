@@ -1,15 +1,15 @@
-// Audio emitter for generating dual-tone submarine pings
-// Uses two simultaneous frequencies: submarine type (500-600Hz) + hue (650-800Hz)
+// Audio emitter for generating single-frequency submarine pings
+// Each submarine type has a frequency range with hue encoded within it
 
-import { hueToFrequency, getSubmarineFrequency } from '../core/mapping.js';
+import { getSubmarineFrequency } from '../core/mapping.js';
 
 let audioContext = null;
 let lastEmitTime = 0;
 
-// Configurable audio settings for dual-tone pings
+// Configurable audio settings for single-frequency pings
 const AUDIO_SETTINGS = {
-    PING_GAIN: 0.3,        // 30% volume per tone (0.0 - 1.0)
-    PING_DURATION: 200,    // 200ms ping duration
+    PING_GAIN: 0.6,        // 60% volume (good balance of loudness and clarity)
+    PING_DURATION: 300,    // 300ms ping duration (long enough for detection)
     ATTACK_TIME: 0.01,     // 10ms attack
     RELEASE_TIME: 0.05     // 50ms release
 };
@@ -58,69 +58,47 @@ export async function emitPing(hue, modelId) {
 
     // Prevent rapid-fire pings
     const now = Date.now();
-    if (now - lastEmitTime < 1000) { // Reduced cooldown for simpler dual-tone
+    if (now - lastEmitTime < 800) {
         return;
     }
     lastEmitTime = now;
 
-    // Get the two frequencies for dual-tone encoding
-    const submarineFreq = getSubmarineFrequency(modelId);  // 500-600 Hz range
-    const hueFreq = hueToFrequency(hue);                   // 650-800 Hz range
+    // Get the single frequency that encodes both submarine type and hue
+    const frequency = getSubmarineFrequency(modelId, hue);
     const duration = AUDIO_SETTINGS.PING_DURATION / 1000; // Convert to seconds
 
-    console.log(`Emitting ${modelId} dual-tone ping: ${submarineFreq} Hz (type) + ${hueFreq.toFixed(1)} Hz (hue: ${hue})`);
+    console.log(`Emitting ${modelId} ping: ${frequency.toFixed(1)} Hz (hue: ${hue})`);
 
     const currentTime = audioContext.currentTime;
 
-    // Create first oscillator for submarine type (500-600 Hz)
-    const submarineOsc = audioContext.createOscillator();
-    const submarineGain = audioContext.createGain();
-    
-    submarineOsc.type = 'sine';
-    submarineOsc.frequency.setValueAtTime(submarineFreq, currentTime);
-    
-    submarineOsc.connect(submarineGain);
-    submarineGain.connect(audioContext.destination);
-    
-    // Create second oscillator for hue (650-800 Hz)
-    const hueOsc = audioContext.createOscillator();
-    const hueGainNode = audioContext.createGain();
-    
-    hueOsc.type = 'sine';
-    hueOsc.frequency.setValueAtTime(hueFreq, currentTime);
-    
-    hueOsc.connect(hueGainNode);
-    hueGainNode.connect(audioContext.destination);
+    // Create single oscillator for encoded frequency
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
 
-    // Configure gain envelopes for both tones (simultaneous)
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(frequency, currentTime);
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+
+    // Configure gain envelope
     const gain = AUDIO_SETTINGS.PING_GAIN;
     const attackTime = AUDIO_SETTINGS.ATTACK_TIME;
     const releaseTime = AUDIO_SETTINGS.RELEASE_TIME;
 
-    // Submarine tone envelope
-    submarineGain.gain.setValueAtTime(0, currentTime);
-    submarineGain.gain.linearRampToValueAtTime(gain, currentTime + attackTime);
-    submarineGain.gain.setValueAtTime(gain, currentTime + duration - releaseTime);
-    submarineGain.gain.linearRampToValueAtTime(0, currentTime + duration);
+    gainNode.gain.setValueAtTime(0, currentTime);
+    gainNode.gain.linearRampToValueAtTime(gain, currentTime + attackTime);
+    gainNode.gain.setValueAtTime(gain, currentTime + duration - releaseTime);
+    gainNode.gain.linearRampToValueAtTime(0, currentTime + duration);
 
-    // Hue tone envelope
-    hueGainNode.gain.setValueAtTime(0, currentTime);
-    hueGainNode.gain.linearRampToValueAtTime(gain, currentTime + attackTime);
-    hueGainNode.gain.setValueAtTime(gain, currentTime + duration - releaseTime);
-    hueGainNode.gain.linearRampToValueAtTime(0, currentTime + duration);
-
-    // Start and stop both oscillators simultaneously
-    submarineOsc.start(currentTime);
-    submarineOsc.stop(currentTime + duration);
-    
-    hueOsc.start(currentTime);
-    hueOsc.stop(currentTime + duration);
+    // Start and stop oscillator
+    oscillator.start(currentTime);
+    oscillator.stop(currentTime + duration);
 
     // Fire ping emitted event
     window.dispatchEvent(new CustomEvent('pingEmitted', {
         detail: {
-            submarineFreq: submarineFreq,
-            hueFreq: hueFreq,
+            frequency: frequency,
             hue: hue,
             modelId: modelId,
             timestamp: now,
@@ -128,7 +106,7 @@ export async function emitPing(hue, modelId) {
         }
     }));
 
-    console.log(`${modelId} dual-tone ping emitted successfully`);
+    console.log(`${modelId} ping emitted successfully at ${frequency.toFixed(1)} Hz`);
 }
 
 // Utility functions for audio configuration
