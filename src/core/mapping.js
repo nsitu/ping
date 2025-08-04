@@ -1,14 +1,15 @@
 // Mapping functions for single-frequency submarine ping encoding
 // Each submarine type gets a 100Hz frequency range with hue encoded within that range
-// Frequency ranges optimized for typical microphone sensitivity (800-1500 Hz)
+// Frequency ranges centered around 600-1000 Hz based on real-world testing results
 // All submarines use sine waves for optimal detection reliability
 
-// Frequency ranges for each submarine type (100Hz each, optimized for microphone sensitivity)
+// Frequency ranges for each submarine type (100Hz each, optimized based on testing)
+// Testing showed 800-900 Hz works reliably, so centering ranges around this proven range
 const SUBMARINE_FREQUENCY_RANGES = {
-    military: { min: 800, max: 900 },    // 800-900 Hz
-    research: { min: 1000, max: 1100 },  // 1000-1100 Hz (optimal range)
-    robotic: { min: 1200, max: 1300 },   // 1200-1300 Hz (optimal range)
-    tourist: { min: 1400, max: 1500 }    // 1400-1500 Hz
+    military: { min: 600, max: 700 },    // 600-700 Hz
+    research: { min: 700, max: 800 },    // 700-800 Hz  
+    robotic: { min: 800, max: 900 },     // 800-900 Hz (proven reliable)
+    tourist: { min: 900, max: 1000 }     // 900-1000 Hz
 };
 
 // Get frequency for a submarine type with encoded hue

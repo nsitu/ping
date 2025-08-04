@@ -149,9 +149,9 @@ function findFrequencyPeaks(frequencyData) {
     const minPeakHeight = -50; // dB
     const minPeakDistance = 3; // bins (reduced for better precision in our narrow ranges)
 
-    // Focus on our submarine frequency ranges (800-1500 Hz)
-    const minFreq = 800;
-    const maxFreq = 1500;
+    // Focus on our submarine frequency ranges (600-1000 Hz)
+    const minFreq = 600;
+    const maxFreq = 1000;
     const minBin = Math.floor(minFreq / FREQ_BIN_SIZE);
     const maxBin = Math.ceil(maxFreq / FREQ_BIN_SIZE);
 
