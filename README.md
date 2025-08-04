@@ -1,6 +1,6 @@
 # 🌊 RelationShip 🌊
 
-A browser-based "submarine ping" art app where users pick a hue (0–255) and one of four submarine types. Pressing "Ping" emits a short sine wave audio burst (400–775 Hz mapped from hue and submarine type). Nearby peers running the same app detect each other via the mic, and display colored subs in a shared viewport for 1 sec before fade-out.
+A browser-based "submarine ping" art app where users pick a hue (0–255) and one of four submarine types. Pressing "Ping" emits a short sine wave audio burst (800–1500 Hz mapped from hue and submarine type). Nearby peers running the same app detect each other via the mic, and display colored subs in a shared viewport for 1 sec before fade-out.
 
 ## Features
 
@@ -22,12 +22,12 @@ A browser-based "submarine ping" art app where users pick a hue (0–255) and on
 ## Technical Details
 
 ### Audio Mapping
-- **Frequency Ranges**: 
-  - Military: 400-475 Hz
-  - Research: 500-575 Hz  
-  - Robotic: 600-675 Hz
-  - Tourist: 700-775 Hz
-- **Hue Mapping**: Within each 75Hz range, hue 0-255 maps linearly from min to max frequency
+- **Frequency Ranges** (optimized for microphone sensitivity): 
+  - Military: 800-900 Hz
+  - Research: 1000-1100 Hz  
+  - Robotic: 1200-1300 Hz
+  - Tourist: 1400-1500 Hz
+- **Hue Mapping**: Within each 100Hz range, hue 0-255 maps linearly from min to max frequency
 - **Waveform**: All submarines use sine waves for optimal detection reliability
 
 ### File Structure
